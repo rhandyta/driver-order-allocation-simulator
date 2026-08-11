@@ -246,11 +246,28 @@ docker-compose down
 
 ---
 
+### 🌐 L. Mengakses 3 Web Application Portals (Management, Driver, & Customer)
+
+Jalankan FastAPI REST Server untuk mengakses 3 Web App Portals terpisah:
+
+```bash
+# Meluncurkan API Gateway Server
+python -m src.main serve --port 8000
+```
+
+Buka URL aplikasi di browser:
+1. **Management Operations Control Center**: `http://localhost:8000/app/admin/index.html`
+2. **Driver Web App & Portal**: `http://localhost:8000/app/driver/index.html`
+3. **Customer Booking App**: `http://localhost:8000/app/customer/index.html`
+
+---
+
 ## ⚙️ 3. Mengubah Konfigurasi & Data Input
 
 - **Bobot Scoring Engine**: Edit file [config/weights.yaml](file:///d:/Project/python/driver-order-allocation-simulator/config/weights.yaml) untuk mengubah bobot `demand`, `history`, `distance`, dll.
 - **Profil Driver**: Edit file [data/drivers.json](file:///d:/Project/python/driver-order-allocation-simulator/data/drivers.json) untuk menambah/mengubah kriteria driver.
 - **Kondisi Pasar**: Edit file [data/market.json](file:///d:/Project/python/driver-order-allocation-simulator/data/market.json) untuk mengubah rasio demand/supply wilayah.
+
 
 
 
