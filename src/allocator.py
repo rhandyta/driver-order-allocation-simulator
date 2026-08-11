@@ -34,7 +34,8 @@ def allocate_order(order: Order, drivers: List[Driver], market: Market,
                    weights: ScoringWeights, sub_weights: HistorySubWeights,
                    temperature: float = 5.0, method: str = "softmax",
                    eligibility_mode: str = "hard",
-                   norm_params: Optional[dict] = None) -> Optional[AllocationResult]:
+                   norm_params: Optional[dict] = None,
+                   use_osrm: bool = True) -> Optional[AllocationResult]:
     """Full allocation pipeline: filter -> score -> rank -> allocate."""
     # Step 1: Filter eligible
     eligible = filter_eligible(drivers, order, eligibility_mode)
@@ -42,7 +43,8 @@ def allocate_order(order: Order, drivers: List[Driver], market: Market,
         return None
     
     # Step 2: Score all candidates
-    scored = score_all_candidates(eligible, order, market, weights, sub_weights, norm_params)
+    scored = score_all_candidates(eligible, order, market, weights, sub_weights, norm_params, use_osrm=use_osrm)
+
     
     # Step 3: Rank
     ranked = rank_drivers(scored)

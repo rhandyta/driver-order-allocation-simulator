@@ -179,11 +179,17 @@ def update_market_config(cfg: MarketConfigRequest):
 def list_drivers():
     return [
         {
-            "id": d.id, "lat": d.location[0], "lon": d.location[1],
-            "online": d.online, "acceptance_rate": d.acceptance_rate,
-            "completion_rate": d.completion_rate, "service_types": d.service_types
+            "id": d.id,
+            "lat": d.location[0],
+            "lon": d.location[1],
+            "online": d.online,
+            "rating": round(d.completion_rate * 5.0, 1),
+            "acceptance_rate_pct": round(d.acceptance_rate * 100, 1),
+            "completion_rate_pct": round(d.completion_rate * 100, 1),
+            "service_types": d.service_types
         } for d in state.drivers.values()
     ]
+
 
 @app.post("/api/driver/toggle-online")
 def toggle_driver_online(payload: Dict[str, Any]):
@@ -272,6 +278,148 @@ def create_customer_order(req: CreateOrderRequest):
             pass
 
     return order_data
+
+@app.post("/api/orders/accept")
+def accept_order(payload: Dict[str, Any]):
+    order_id = payload.get("order_id")
+    driver_id = payload.get("driver_id", "D001")
+    
+    if driver_id not in state.drivers:
+        state.drivers[driver_id] = generate_random_driver(driver_id)
+    drv = state.drivers[driver_id]
+    
+    # Update performance metrics & rating
+    drv.acceptance_rate = min(1.0, drv.acceptance_rate + 0.01)
+    drv.completion_rate = min(1.0, drv.completion_rate + 0.005)
+    new_rating = round(drv.completion_rate * 5.0, 1)
+    
+    if order_id in state.orders:
+        state.orders[order_id]["status"] = "accepted"
+        
+    # Save updated driver metrics directly to MySQL database
+    try:
+        from .database import MySQLDatabaseManager
+        db = MySQLDatabaseManager()
+        db.init_db()
+        db.save_drivers([drv])
+    except Exception:
+        pass
+        
+    return {
+        "status": "accepted",
+        "order_id": order_id,
+        "driver_id": driver_id,
+        "acceptance_rate": round(drv.acceptance_rate * 100, 1),
+        "completion_rate": round(drv.completion_rate * 100, 1),
+        "rating": new_rating
+    }
+
+@app.post("/api/orders/reject")
+def reject_order(payload: Dict[str, Any]):
+    order_id = payload.get("order_id")
+    driver_id = payload.get("driver_id", "D001")
+    
+    if driver_id not in state.drivers:
+        state.drivers[driver_id] = generate_random_driver(driver_id)
+    drv = state.drivers[driver_id]
+
+    
+    # Penalize acceptance rate on rejection
+    drv.acceptance_rate = max(0.5, drv.acceptance_rate - 0.05)
+    new_rating = round(drv.completion_rate * 5.0, 1)
+    
+    if order_id in state.orders:
+        state.orders[order_id]["status"] = "rejected"
+        
+    # Save updated driver metrics directly to MySQL database
+    try:
+        from .database import MySQLDatabaseManager
+        db = MySQLDatabaseManager()
+        db.init_db()
+        db.save_drivers([drv])
+    except Exception:
+        pass
+        
+    return {
+        "status": "rejected",
+        "order_id": order_id,
+        "driver_id": driver_id,
+        "acceptance_rate": round(drv.acceptance_rate * 100, 1),
+        "completion_rate": round(drv.completion_rate * 100, 1),
+        "rating": new_rating
+    }
+
+@app.post("/api/orders/cancel")
+def cancel_order(payload: Dict[str, Any]):
+    order_id = payload.get("order_id")
+    driver_id = payload.get("driver_id", "D001")
+    reason = payload.get("reason", "Pembatalan oleh driver")
+    
+    if driver_id not in state.drivers:
+        state.drivers[driver_id] = generate_random_driver(driver_id)
+    drv = state.drivers[driver_id]
+    
+    # Heavy penalty on completion rate for active order cancellation (-10%)
+    drv.completion_rate = max(0.4, drv.completion_rate - 0.10)
+    new_rating = round(drv.completion_rate * 5.0, 1)
+    
+    if order_id in state.orders:
+        state.orders[order_id]["status"] = "cancelled"
+        
+    # Save updated driver metrics directly to MySQL database
+    try:
+        from .database import MySQLDatabaseManager
+        db = MySQLDatabaseManager()
+        db.init_db()
+        db.save_drivers([drv])
+    except Exception:
+        pass
+        
+    return {
+        "status": "cancelled",
+        "order_id": order_id,
+        "driver_id": driver_id,
+        "reason": reason,
+        "acceptance_rate": round(drv.acceptance_rate * 100, 1),
+        "completion_rate": round(drv.completion_rate * 100, 1),
+        "rating": new_rating
+    }
+
+@app.post("/api/orders/ignore")
+def ignore_order(payload: Dict[str, Any]):
+    order_id = payload.get("order_id")
+    driver_id = payload.get("driver_id", "D001")
+    
+    if driver_id not in state.drivers:
+        state.drivers[driver_id] = generate_random_driver(driver_id)
+    drv = state.drivers[driver_id]
+    
+    # Penalty on acceptance rate for ignoring/timing out order (-8%)
+    drv.acceptance_rate = max(0.4, drv.acceptance_rate - 0.08)
+    new_rating = round(drv.completion_rate * 5.0, 1)
+    
+    if order_id in state.orders:
+        state.orders[order_id]["status"] = "ignored"
+        
+    # Save updated driver metrics directly to MySQL database
+    try:
+        from .database import MySQLDatabaseManager
+        db = MySQLDatabaseManager()
+        db.init_db()
+        db.save_drivers([drv])
+    except Exception:
+        pass
+        
+    return {
+        "status": "ignored",
+        "order_id": order_id,
+        "driver_id": driver_id,
+        "acceptance_rate": round(drv.acceptance_rate * 100, 1),
+        "completion_rate": round(drv.completion_rate * 100, 1),
+        "rating": new_rating
+    }
+
+
 
 
 @app.post("/score")

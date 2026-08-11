@@ -4,7 +4,8 @@ from typing import List, Tuple, Dict, Optional
 
 def calculate_score(driver: Driver, order: Order, market: Market,
                     weights: ScoringWeights, sub_weights: HistorySubWeights,
-                    norm_params: Optional[Dict] = None) -> float:
+                    norm_params: Optional[Dict] = None,
+                    use_osrm: bool = True) -> float:
     """Calculate the total score for a driver-order pair.
     
     score = w_demand * demand_score + w_history * historical_fit + ...
@@ -22,8 +23,8 @@ def calculate_score(driver: Driver, order: Order, market: Market,
     h_score = features.historical_fit(driver, order, sub_weights)
     s_score = features.service_fit(driver, order)
     t_score = features.time_fit(driver, order)
-    dist_score = features.location_score(driver, order, max_distance)
-    e_score = features.eta_fit(driver, order, max_eta)
+    dist_score = features.location_score(driver, order, max_distance, use_osrm=use_osrm)
+    e_score = features.eta_fit(driver, order, max_eta, use_osrm=use_osrm)
     ar_score = features.acceptance_score(driver)
     cr_score = features.completion_score(driver)
     oc_score = features.online_consistency(driver, max_hours, max_days)
@@ -43,14 +44,16 @@ def calculate_score(driver: Driver, order: Order, market: Market,
 
 def score_all_candidates(drivers: List[Driver], order: Order, market: Market,
                           weights: ScoringWeights, sub_weights: HistorySubWeights,
-                          norm_params: Optional[Dict] = None) -> List[Tuple[Driver, float]]:
+                          norm_params: Optional[Dict] = None,
+                          use_osrm: bool = True) -> List[Tuple[Driver, float]]:
     """Score all candidate drivers for a given order."""
     results = []
     for driver in drivers:
-        score = calculate_score(driver, order, market, weights, sub_weights, norm_params)
+        score = calculate_score(driver, order, market, weights, sub_weights, norm_params, use_osrm=use_osrm)
         driver.score = score
         results.append((driver, score))
     return results
+
 
 def get_score_breakdown(driver: Driver, order: Order, market: Market,
                         weights: ScoringWeights, sub_weights: HistorySubWeights,

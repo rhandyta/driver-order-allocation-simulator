@@ -79,12 +79,13 @@
             <div class="grid-cols-3" style="margin-bottom: 1.5rem;">
                 <div class="metric-box" style="background: rgba(15, 23, 42, 0.4); padding: 0.75rem; border-radius: 8px;">
                     <span class="metric-label">Driver Rating</span>
-                    <span class="metric-value" style="font-size: 1.25rem;">⭐ 4.9</span>
+                    <span class="metric-value" style="font-size: 1.25rem;" id="val-rating">⭐ 4.9</span>
                 </div>
                 <div class="metric-box" style="background: rgba(15, 23, 42, 0.4); padding: 0.75rem; border-radius: 8px;">
                     <span class="metric-label">Acceptance Rate</span>
-                    <span class="metric-value" style="font-size: 1.25rem; color: #34d399;">98.5%</span>
+                    <span class="metric-value" style="font-size: 1.25rem; color: #34d399;" id="val-ar">98.5%</span>
                 </div>
+
                 <div class="metric-box" style="background: rgba(15, 23, 42, 0.4); padding: 0.75rem; border-radius: 8px;">
                     <span class="metric-label">Pendapatan Hari Ini</span>
                     <span class="metric-value" style="font-size: 1.25rem; color: #fbbf24;" id="driver-earnings">Rp 185.000</span>
@@ -95,6 +96,9 @@
             <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
                 <button class="btn btn-primary" style="flex: 1; font-size: 0.85rem;" onclick="setNearPickupLocation()">
                     🎯 Pindahkan Posisi Saya Dekat Penjemputan
+                </button>
+                <button class="btn btn-danger" style="flex: 1; font-size: 0.85rem;" onclick="cancelActiveOrder()">
+                    🚫 Batalkan Order (Penalti -10% Completion)
                 </button>
             </div>
 
@@ -123,12 +127,14 @@
                 <p><b>Estimasi Komisi:</b> <b style="color: #34d399; font-size: 1.1rem;" id="modal-fare">Rp 15.000</b></p>
             </div>
 
-            <div style="display: flex; gap: 1rem;">
-                <button class="btn btn-danger" style="flex: 1;" onclick="rejectOrder()">Tolak</button>
-                <button class="btn btn-success" style="flex: 1;" onclick="acceptOrder()">Terima Order</button>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-danger" style="flex: 1; font-size: 0.8rem;" onclick="rejectOrder()">Tolak (-5%)</button>
+                <button class="btn btn-warning" style="flex: 1; font-size: 0.8rem; background: #f59e0b;" onclick="ignoreOrder()">Abaikan (-8%)</button>
+                <button class="btn btn-success" style="flex: 1.2; font-size: 0.8rem;" onclick="acceptOrder()">Terima (+1%)</button>
             </div>
         </div>
     </div>
+
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
@@ -167,19 +173,39 @@
             driverMarker.bindPopup(`<b>Lokasi Anda (${currentDriverId})</b><br>Posisi: ${lat.toFixed(4)}, ${lon.toFixed(4)}`).openPopup();
         }
 
+        async function updateDriverMetricsDisplay() {
+            try {
+                const res = await fetch('/api/drivers');
+                const drivers = await res.json();
+                if (Array.isArray(drivers)) {
+                    const drv = drivers.find(d => d.id === currentDriverId);
+                    const ratingVal = (drv && drv.rating !== undefined && drv.rating !== null) ? Number(drv.rating).toFixed(1) : "4.9";
+                    const arVal = (drv && drv.acceptance_rate_pct !== undefined && drv.acceptance_rate_pct !== null) ? Number(drv.acceptance_rate_pct).toFixed(1) : "98.5";
+                    
+                    const ratingElem = document.getElementById('val-rating');
+                    const arElem = document.getElementById('val-ar');
+                    if (ratingElem) ratingElem.innerText = `⭐ ${ratingVal}`;
+                    if (arElem) arElem.innerText = `${arVal}%`;
+                }
+            } catch (err) {
+                console.error("Gagal memperbarui metrik driver:", err);
+            }
+        }
+
         async function loadAllDrivers() {
             try {
                 const res = await fetch('/api/drivers');
                 const drivers = await res.json();
                 const select = document.getElementById('driver-select');
                 
-                if (drivers && drivers.length > 0) {
+                if (Array.isArray(drivers) && drivers.length > 0) {
                     select.innerHTML = drivers.map(d => {
                         const svcs = (d.service_types || ['GoRide']).join('/');
                         const statusStr = d.online ? '● ONLINE' : '○ OFFLINE';
                         return `<option value="${d.id}" ${d.id === currentDriverId ? 'selected' : ''}>Driver ${d.id} (${svcs}) — ${statusStr}</option>`;
                     }).join('');
                 }
+                updateDriverMetricsDisplay();
             } catch (err) {
                 console.error("Gagal memuat daftar driver:", err);
             }
@@ -188,12 +214,11 @@
         async function switchDriverProfile() {
             currentDriverId = document.getElementById('driver-select').value;
             await updateLocationOnBackend(driverLat, driverLon);
+            await updateDriverMetricsDisplay();
             alert(`👤 Profil Driver Diganti ke ${currentDriverId}. Status Aktif & Lokasi Disinkronkan!`);
         }
 
-
         async function setNearPickupLocation() {
-            // Set location to default pickup center (-6.9147, 107.6098)
             let pickupLat = -6.9147, pickupLon = 107.6098;
             driverMarker.setLatLng([pickupLat, pickupLon]);
             map.setView([pickupLat, pickupLon], 15);
@@ -226,7 +251,6 @@
                 const res = await fetch('/api/market-status');
                 const data = await res.json();
                 
-                // Find order allocated to current driver
                 const myOrder = data.recent_allocations.find(a => a.assigned_driver_id === currentDriverId && !processedOrderIds.has(a.order_id));
                 if (myOrder) {
                     currentActiveOrder = myOrder;
@@ -243,20 +267,87 @@
             }
         }
 
-        function acceptOrder() {
+        async function acceptOrder() {
             if (currentActiveOrder) {
                 processedOrderIds.add(currentActiveOrder.order_id);
+                try {
+                    const res = await fetch('/api/orders/accept', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ order_id: currentActiveOrder.order_id, driver_id: currentDriverId })
+                    });
+                    const data = await res.json();
+                    if (data && data.rating !== undefined) {
+                        document.getElementById('val-rating').innerText = `⭐ ${Number(data.rating).toFixed(1)}`;
+                    }
+                    if (data && data.acceptance_rate !== undefined) {
+                        document.getElementById('val-ar').innerText = `${Number(data.acceptance_rate).toFixed(1)}%`;
+                    }
+                } catch (err) { console.error(err); }
             }
             document.getElementById('dispatch-modal').style.display = 'none';
-            alert(`🎉 Selamat! Order ${currentActiveOrder ? currentActiveOrder.order_id : ''} Berhasil Diterima. Silakan Menuju Lokasi Penjemputan Customer.`);
+            alert(`🎉 Selamat! Order ${currentActiveOrder ? currentActiveOrder.order_id : ''} Berhasil Diterima & Disimpan ke MySQL. Rating & Acceptance Rate Anda Meningkat!`);
         }
 
-        function rejectOrder() {
+        async function rejectOrder() {
             if (currentActiveOrder) {
                 processedOrderIds.add(currentActiveOrder.order_id);
+                try {
+                    const res = await fetch('/api/orders/reject', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ order_id: currentActiveOrder.order_id, driver_id: currentDriverId })
+                    });
+                    const data = await res.json();
+                    if (data && data.acceptance_rate !== undefined) {
+                        document.getElementById('val-ar').innerText = `${Number(data.acceptance_rate).toFixed(1)}%`;
+                    }
+                } catch (err) { console.error(err); }
             }
             document.getElementById('dispatch-modal').style.display = 'none';
+            alert(`⚠️ Order Ditolak. Acceptance Rate Anda Penalti Menjadi ${document.getElementById('val-ar').innerText}. Data Tersinkron ke MySQL.`);
         }
+
+        async function ignoreOrder() {
+            if (currentActiveOrder) {
+                processedOrderIds.add(currentActiveOrder.order_id);
+                try {
+                    const res = await fetch('/api/orders/ignore', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ order_id: currentActiveOrder.order_id, driver_id: currentDriverId })
+                    });
+                    const data = await res.json();
+                    if (data && data.acceptance_rate !== undefined) {
+                        document.getElementById('val-ar').innerText = `${Number(data.acceptance_rate).toFixed(1)}%`;
+                    }
+                } catch (err) { console.error(err); }
+            }
+            document.getElementById('dispatch-modal').style.display = 'none';
+            alert(`⏳ Order Diabaikan (Timeout). Acceptance Rate Anda Penalti -8% Menjadi ${document.getElementById('val-ar').innerText}. Tersinkron ke MySQL.`);
+        }
+
+        async function cancelActiveOrder() {
+            if (!confirm("Apakah Anda yakin ingin membatalkan order aktif? Tindakan ini memberikan penalti -10% Completion Rate & Penurunan Rating!")) return;
+            
+            try {
+                const res = await fetch('/api/orders/cancel', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        order_id: currentActiveOrder ? currentActiveOrder.order_id : "ORD_0001",
+                        driver_id: currentDriverId,
+                        reason: "Driver membatalkan perjalanan"
+                    })
+                });
+                const data = await res.json();
+                if (data && data.rating !== undefined) {
+                    document.getElementById('val-rating').innerText = `⭐ ${Number(data.rating).toFixed(1)}`;
+                }
+                alert(`🚫 Order Berhasil Dibatalkan. Completion Rate & Rating Driver DROPS Menjadi ${document.getElementById('val-rating').innerText}! Tersinkron ke MySQL.`);
+            } catch (err) { console.error(err); }
+        }
+
 
         // Sync initial position, load driver list, & start polling
         loadAllDrivers();
@@ -264,5 +355,5 @@
         setInterval(checkForDispatchOrders, 2000);
     </script>
 </body>
-
 </html>
+

@@ -43,6 +43,23 @@ def test_create_order_endpoint():
     assert data["service_type"] == "GoRide"
     assert "status" in data
 
+def test_create_order_far_away_unassigned():
+    # Pickup in Jakarta (-6.2088, 106.8456), Drivers in Bandung (-6.9147, 107.6098) ~130 km far
+    payload = {
+        "service_type": "GoRide",
+        "pickup_lat": -6.2088,
+        "pickup_lon": 106.8456,
+        "dest_lat": -6.2150,
+        "dest_lon": 106.8500,
+        "customer_name": "Pelanggan Jakarta"
+    }
+    response = client.post("/api/orders/create", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "unassigned"
+    assert data["assigned_driver_id"] is None
+
+
 def test_score_endpoint():
     payload = {
         "driver": {

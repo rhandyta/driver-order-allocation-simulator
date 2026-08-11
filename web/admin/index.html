@@ -72,14 +72,21 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Bobot Jarak Spasial (Distance Weight)</label>
-                    <input type="range" id="weight-distance" min="0" max="100" value="30">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Bobot Jarak Spasial (Distance Weight):</label>
+                        <span id="val-distance-num" class="chip chip-purple" style="font-size: 0.9rem;">30</span>
+                    </div>
+                    <input type="range" id="weight-distance" min="0" max="100" value="30" oninput="document.getElementById('val-distance-num').innerText = this.value">
                 </div>
 
                 <div class="form-group">
-                    <label>Bobot Demand/Supply Pasar (Demand Weight)</label>
-                    <input type="range" id="weight-demand" min="0" max="100" value="30">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label>Bobot Demand/Supply Pasar (Demand Weight):</label>
+                        <span id="val-demand-num" class="chip chip-purple" style="font-size: 0.9rem;">30</span>
+                    </div>
+                    <input type="range" id="weight-demand" min="0" max="100" value="30" oninput="document.getElementById('val-demand-num').innerText = this.value">
                 </div>
+
 
                 <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="applyMarketConfig()">
                     ⚡ Terapkan Konfigurasi Pasar

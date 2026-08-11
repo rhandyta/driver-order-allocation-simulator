@@ -10,7 +10,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         .booking-card {
-            max-width: 900px;
+            max-width: 950px;
             margin: 0 auto;
         }
     </style>
@@ -37,17 +37,20 @@
             <div style="margin-bottom: 1.5rem;">
                 <h2>📱 Pesan Layanan GoRide / GoFood</h2>
                 <p style="color: var(--text-muted); font-size: 0.9rem;">
-                    Tentukan titik penjemputan dan tujuan di peta Bandung untuk mencocokkan driver terbaik via Scoring Engine.
+                    Geser pin atau klik di peta untuk menentukan rute penjemputan dan tujuan. Garis rute perjalanan akan otomatis digambar secara visual.
                 </p>
             </div>
 
             <!-- MAP & BOOKING FORM GRID -->
             <div class="grid-cols-2">
                 
-                <!-- LEFT: INTERACTIVE MAP -->
+                <!-- LEFT: INTERACTIVE MAP WITH ROUTE LINE -->
                 <div>
-                    <h4 style="margin-bottom: 0.5rem;">📍 Klik Peta untuk Lokasi Jemput & Tujuan</h4>
-                    <div id="map" style="height: 380px;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4>📍 Peta Rute Penjemputan & Tujuan</h4>
+                        <span class="chip chip-purple" id="badge-dist">Jarak: 2.1 km</span>
+                    </div>
+                    <div id="map" style="height: 400px;"></div>
                 </div>
 
                 <!-- RIGHT: BOOKING FORM -->
@@ -82,9 +85,9 @@
 
             </div>
 
-            <!-- RESULT MATCHING CARD -->
+            <!-- RESULT MATCHING CARD WITH DRIVER ROUTE -->
             <div id="result-card" style="display: none; margin-top: 2rem; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 1.5rem; border-radius: 12px;">
-                <h3 style="color: #34d399; margin-bottom: 1rem;">🎉 DRIVER BERHASIL DICOCOKKAN!</h3>
+                <h3 style="color: #34d399; margin-bottom: 1rem;">🎉 DRIVER BERHASIL DICOCOKKAN & RUTE JALAN DIGAMBAR!</h3>
                 <div class="grid-cols-3">
                     <div>
                         <span class="metric-label">Driver Dialokasikan</span>
@@ -115,19 +118,79 @@
             maxZoom: 19, attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        let pickupMarker = L.marker([pickupLat, pickupLon], {draggable: true}).addTo(map).bindPopup("Lokasi Penjemputan");
-        let destMarker = L.marker([destLat, destLon], {draggable: true}).addTo(map).bindPopup("Lokasi Tujuan");
+        let pickupMarker = L.marker([pickupLat, pickupLon], {draggable: true}).addTo(map).bindPopup("🟢 Lokasi Penjemputan (Pickup)");
+        let destMarker = L.marker([destLat, destLon], {draggable: true}).addTo(map).bindPopup("🔴 Lokasi Tujuan (Destination)");
+
+        // Route Polylines
+        let routeLine = L.polyline([], {
+            color: '#3b82f6', weight: 5, opacity: 0.85, lineJoin: 'round'
+        }).addTo(map);
+
+        let driverRouteLine = L.polyline([], {
+            color: '#8b5cf6', weight: 5, opacity: 0.9, dashArray: '6, 8', lineJoin: 'round'
+        }).addTo(map);
+
+        let matchedDriverMarker = null;
+
+        async function fetchOSRMRoute(startLat, startLon, endLat, endLon) {
+            try {
+                const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    const latlngs = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                    const distKm = data.routes[0].distance / 1000.0;
+                    return { latlngs, distKm };
+                }
+            } catch (err) {
+                console.error("OSRM Route fetch failed, fallback to straight line:", err);
+            }
+            return {
+                latlngs: [[startLat, startLon], [endLat, endLon]],
+                distKm: null
+            };
+        }
+
+        async function updateRouteLine() {
+            const routeData = await fetchOSRMRoute(pickupLat, pickupLon, destLat, destLon);
+            routeLine.setLatLngs(routeData.latlngs);
+            
+            let distStr = "";
+            if (routeData.distKm) {
+                distStr = `${routeData.distKm.toFixed(2)} km (Rute Jalan Raya)`;
+            } else {
+                const R = 6371;
+                const dLat = (destLat - pickupLat) * Math.PI / 180;
+                const dLon = (destLon - pickupLon) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                          Math.cos(pickupLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) *
+                          Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                distStr = `${(R * c).toFixed(2)} km`;
+            }
+
+            document.getElementById('badge-dist').innerText = `Jarak Rute: ${distStr}`;
+        }
 
         pickupMarker.on('dragend', function(e) {
             let latlng = e.target.getLatLng();
             pickupLat = latlng.lat; pickupLon = latlng.lng;
             document.getElementById('pickup-coords').value = `${pickupLat.toFixed(4)}, ${pickupLon.toFixed(4)}`;
+            updateRouteLine();
         });
 
         destMarker.on('dragend', function(e) {
             let latlng = e.target.getLatLng();
             destLat = latlng.lat; destLon = latlng.lng;
             document.getElementById('dest-coords').value = `${destLat.toFixed(4)}, ${destLon.toFixed(4)}`;
+            updateRouteLine();
+        });
+
+        map.on('click', function(e) {
+            destMarker.setLatLng(e.latlng);
+            destLat = e.latlng.lat; destLon = e.latlng.lng;
+            document.getElementById('dest-coords').value = `${destLat.toFixed(4)}, ${destLon.toFixed(4)}`;
+            updateRouteLine();
         });
 
         async function placeOrder() {
@@ -155,9 +218,31 @@
                     document.getElementById('res-score').innerText = data.score;
                     document.getElementById('res-fare').innerText = 'Rp ' + data.fare_idr.toLocaleString('id-ID');
                     document.getElementById('result-card').style.display = 'block';
-                    alert(`🎉 Driver ${data.assigned_driver_id} Berhasil Dilocasikan untuk Order ${data.order_id}!`);
+
+                    // Fetch Driver Position to draw real road route line
+                    const driversRes = await fetch('/api/drivers');
+                    const driversList = await driversRes.json();
+                    const drv = driversList.find(d => d.id === data.assigned_driver_id);
+
+                    if (drv) {
+                        const driverPos = [drv.lat, drv.lon];
+                        
+                        if (matchedDriverMarker) map.removeLayer(matchedDriverMarker);
+
+                        matchedDriverMarker = L.circleMarker(driverPos, {
+                            radius: 12, fillColor: '#10b981', color: '#ffffff', weight: 3, fillOpacity: 0.9
+                        }).addTo(map).bindPopup(`<b>Driver Dialokasikan: ${drv.id}</b><br>Menuju Lokasi Jemput`).openPopup();
+
+                        // Fetch real road route from driver position to pickup point!
+                        const drvRouteData = await fetchOSRMRoute(drv.lat, drv.lon, pickupLat, pickupLon);
+                        driverRouteLine.setLatLngs(drvRouteData.latlngs);
+
+                        map.fitBounds(L.featureGroup([pickupMarker, destMarker, matchedDriverMarker]).getBounds(), {padding: [50, 50]});
+                    }
+
+                    alert(`🎉 Driver ${data.assigned_driver_id} Berhasil Dialokasikan! Garis Rute Perjalanan Jalan Raya Telah Digambar.`);
                 } else {
-                    alert("⚠️ Maaf, tidak ada driver yang memenuhi kualifikasi saat ini.");
+                    alert("⚠️ Maaf, tidak ada driver yang memenuhi kualifikasi saat ini (di luar radius operasional 15 km).");
                 }
 
             } catch (err) {
@@ -165,6 +250,9 @@
                 alert("Gagal membuat order.");
             }
         }
+
+        updateRouteLine();
+
     </script>
 </body>
 </html>
