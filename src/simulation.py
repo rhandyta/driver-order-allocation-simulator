@@ -156,18 +156,23 @@ class Simulator:
         self.results: List[AllocationResult] = []
     
     def run_day(self, day: int, drivers: List[Driver], orders: List[Order],
-                markets: List[Market]) -> List[AllocationResult]:
+                markets: List[Market], weather: str = "clear",
+                active_events: Optional[Dict] = None) -> List[AllocationResult]:
         day_results = []
+        from .spatial_h3 import H3SpatialManager
+        from .market_dynamic import DynamicMarketManager
         
         for order in orders:
-            area = get_area(order.pickup)
-            market = None
-            for m in markets:
-                if m.area == area:
-                    market = m
-                    break
-            if market is None:
-                market = Market(area=area, active_drivers=50, active_orders=50)
+            h3_cell = H3SpatialManager.coord_to_h3(order.pickup)
+            market = DynamicMarketManager.generate_dynamic_market(
+                timestamp=order.timestamp,
+                h3_cell=h3_cell,
+                base_drivers=len(drivers),
+                base_orders=len(orders),
+                service_type=order.service_type,
+                weather=weather,
+                active_events=active_events
+            )
             
             result = allocate_order(
                 order, drivers, market,
@@ -175,6 +180,7 @@ class Simulator:
                 self.temperature, self.method,
                 self.eligibility_mode, self.norm_params
             )
+
             
             if result:
                 day_results.append(result)
@@ -199,6 +205,7 @@ class Simulator:
                        markets: Optional[List[Market]] = None) -> List[AllocationResult]:
         # Generate drivers
         drivers = [generate_random_driver(f"D{i+1:03d}") for i in range(num_drivers)]
+        self.drivers = drivers
         
         for day in range(days):
             # Generate orders for this day

@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from .models import Driver, Order
 from .features import get_time_slot, get_distance_bucket, get_area
+from .spatial_h3 import H3SpatialManager
 import copy
 
 class HistoryManager:
@@ -9,13 +10,14 @@ class HistoryManager:
     
     def __init__(self, window_size: int = 14):
         self.window_size = window_size
-        # daily_records[driver_id][day_index] = {services: {}, areas: {}, time_slots: {}, distance_buckets: {}}
+        # daily_records[driver_id][day_index] = {services: {}, areas: {}, h3_cells: {}, time_slots: {}, distance_buckets: {}}
         self.daily_records: Dict[str, Dict[int, Dict]] = {}
     
     def _empty_day_record(self) -> Dict:
         return {
             "services": {},
             "areas": {},
+            "h3_cells": {},
             "time_slots": {},
             "distance_buckets": {}
         }
@@ -34,12 +36,16 @@ class HistoryManager:
         # Area
         area = get_area(order.pickup)
         rec["areas"][area] = rec["areas"].get(area, 0) + 1
+        # H3 Cell
+        h3_cell = H3SpatialManager.coord_to_h3(order.pickup)
+        rec["h3_cells"][h3_cell] = rec["h3_cells"].get(h3_cell, 0) + 1
         # Time slot
         slot = get_time_slot(order.timestamp)
         rec["time_slots"][slot] = rec["time_slots"].get(slot, 0) + 1
         # Distance bucket
         bucket = get_distance_bucket(order.estimated_distance)
         rec["distance_buckets"][bucket] = rec["distance_buckets"].get(bucket, 0) + 1
+
     
     def aggregate_window(self, driver_id: str, current_day: int) -> Dict:
         """Aggregate history over rolling window [current_day - window_size + 1, current_day]."""

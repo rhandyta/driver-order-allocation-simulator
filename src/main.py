@@ -42,6 +42,7 @@ def cmd_experiment(args):
         "demand": "experiments.experiment_demand",
         "online": "experiments.experiment_online",
         "combined": "experiments.experiment_combined",
+        "ml": "experiments.experiment_ml",
     }
     
     if args.name not in experiment_map:
@@ -52,7 +53,10 @@ def cmd_experiment(args):
     import importlib
     mod = importlib.import_module(experiment_map[args.name])
     config = load_default_config()
-    mod.run_experiment(config, output_dir=os.path.join(root, "results"))
+    if args.name == "ml":
+        mod.run_ml_experiment(config, output_dir=os.path.join(root, "results"))
+    else:
+        mod.run_experiment(config, output_dir=os.path.join(root, "results"))
 
 def cmd_monte_carlo(args):
     root = get_project_root()
@@ -67,6 +71,24 @@ def cmd_sensitivity(args):
     from experiments.sensitivity import run_sensitivity
     config = load_default_config()
     run_sensitivity(config, output_dir=os.path.join(root, "results"))
+
+def cmd_ml_train(args):
+    root = get_project_root()
+    sys.path.insert(0, root)
+    from experiments.experiment_ml import run_ml_experiment
+    config = load_default_config()
+    run_ml_experiment(config, output_dir=os.path.join(root, "results"))
+
+def cmd_dashboard(args):
+    root = get_project_root()
+    app_path = os.path.join(root, "app.py")
+    print(f"Launching Streamlit Dashboard from {app_path}...")
+    os.system(f"python -m streamlit run {app_path}")
+
+def cmd_serve(args):
+    import uvicorn
+    print(f"Starting FastAPI REST API server on http://localhost:{args.port}...")
+    uvicorn.run("src.api:app", host="0.0.0.0", port=args.port, reload=False)
 
 def main():
     parser = argparse.ArgumentParser(description="Driver Order Allocation Simulator")
@@ -89,6 +111,16 @@ def main():
     # sensitivity
     subparsers.add_parser("sensitivity", help="Run sensitivity analysis")
     
+    # ml-train
+    subparsers.add_parser("ml-train", help="Run Phase 4 & Phase 5 ML training & explainability analysis")
+    
+    # dashboard
+    subparsers.add_parser("dashboard", help="Launch Streamlit Web Dashboard")
+    
+    # serve
+    serve_parser = subparsers.add_parser("serve", help="Launch FastAPI REST API Server")
+    serve_parser.add_argument("--port", type=int, default=8000, help="Server port")
+    
     args = parser.parse_args()
     
     if args.command == "simulate":
@@ -99,8 +131,17 @@ def main():
         cmd_monte_carlo(args)
     elif args.command == "sensitivity":
         cmd_sensitivity(args)
+    elif args.command == "ml-train":
+        cmd_ml_train(args)
+    elif args.command == "dashboard":
+        cmd_dashboard(args)
+    elif args.command == "serve":
+        cmd_serve(args)
     else:
         parser.print_help()
+
+
+
 
 if __name__ == "__main__":
     main()

@@ -93,9 +93,13 @@ def demand_score(market: Market, max_ratio: float = 5.0) -> float:
     ratio = market.active_orders / max(market.active_drivers, 1)
     return normalize(ratio, 0.0, max_ratio)
 
-def location_score(driver: Driver, order: Order, max_distance: float = 15.0) -> float:
+def location_score(driver: Driver, order: Order, max_distance: float = 15.0, use_osrm: bool = False) -> float:
     """Calculate location fitness. Closer = higher score."""
-    dist = haversine(driver.location, order.pickup)
+    if use_osrm:
+        from .routing_osrm import OSRMClient
+        dist, _ = OSRMClient.get_road_distance_and_duration(driver.location, order.pickup)
+    else:
+        dist = haversine(driver.location, order.pickup)
     return 1.0 - normalize(dist, 0.0, max_distance)
 
 def service_fit(driver: Driver, order: Order) -> float:
@@ -127,21 +131,32 @@ def distance_fit(driver: Driver, order: Order) -> float:
         return 0.5
     return buckets.get(bucket, 0) / total
 
-def eta_fit(driver: Driver, order: Order, max_eta: float = 45.0) -> float:
-    """ETA fitness. Estimated based on haversine distance.
-    Assume average speed of 20 km/h in city."""
-    dist = haversine(driver.location, order.pickup)
-    eta_minutes = (dist / 20.0) * 60.0  # 20 km/h average
+def eta_fit(driver: Driver, order: Order, max_eta: float = 45.0, use_osrm: bool = False) -> float:
+    """ETA fitness. Estimated based on haversine distance or OSRM road routing."""
+    if use_osrm:
+        from .routing_osrm import OSRMClient
+        _, eta_minutes = OSRMClient.get_road_distance_and_duration(driver.location, order.pickup)
+    else:
+        dist = haversine(driver.location, order.pickup)
+        eta_minutes = (dist / 20.0) * 60.0  # 20 km/h average
     return 1.0 - normalize(eta_minutes, 0.0, max_eta)
 
+
 def area_fit(driver: Driver, order: Order) -> float:
-    """Area historical fitness."""
+    """Area historical fitness using Uber H3 hexagonal spatial indexing if available,
+    or fallback to coarse area mapping.
+    """
+    if "h3_cells" in driver.history and driver.history["h3_cells"]:
+        from .spatial_h3 import H3SpatialManager
+        return H3SpatialManager.calculate_h3_area_fit(driver.history, order.pickup)
+    
     area = get_area(order.pickup)
     areas = driver.history.get("areas", {})
     total = sum(areas.values())
     if total == 0:
         return 0.5
     return areas.get(area, 0) / total
+
 
 def historical_fit(driver: Driver, order: Order, sub_weights) -> float:
     """Composite historical fitness.
