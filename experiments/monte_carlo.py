@@ -1,0 +1,81 @@
+import os
+import csv
+import matplotlib.pyplot as plt
+from src.models import Driver, Order, Market, ScoringWeights, HistorySubWeights, AllocationResult
+from src.allocator import allocate_order
+from src.simulation import generate_random_order
+
+plt.switch_backend('Agg')
+
+def _make_driver(id, ar=0.95, cr=0.97, online_hours=70, online_days=12,
+                 services=None, history=None, location=(-6.91, 107.61)):
+    if services is None:
+        services = ["GoRide", "GoFood", "GoSend"]
+    if history is None:
+        history = {
+            "services": {"GoFood": 30, "GoRide": 15, "GoSend": 5},
+            "areas": {"area_A": 25, "area_B": 10, "area_C": 5},
+            "time_slots": {"morning": 8, "lunch": 20, "afternoon": 10, "evening": 7, "night": 0},
+            "distance_buckets": {"0-3km": 20, "3-7km": 15, "7km+": 5}
+        }
+    return Driver(
+        id=id, location=location, service_types=services, online=True,
+        acceptance_rate=ar, completion_rate=cr, online_hours=online_hours,
+        online_days=online_days, history=history, account_status="active",
+        device_status="healthy", trip_settings={}
+    )
+
+def _load_from_config(config):
+    sw = config.get('scoring_weights', {})
+    weights = ScoringWeights(
+        demand=sw.get('demand', 30), history=sw.get('history', 20),
+        service=sw.get('service', 15), time=sw.get('time', 10),
+        distance=sw.get('distance', 10), eta=sw.get('eta', 5),
+        completion_rate=sw.get('completion_rate', 5),
+        acceptance_rate=sw.get('acceptance_rate', 3),
+        online_consistency=sw.get('online_consistency', 2)
+    )
+    hsw = config.get('history_sub_weights', {})
+    sub_weights = HistorySubWeights(
+        service=hsw.get('service', 0.35), area=hsw.get('area', 0.30),
+        time=hsw.get('time', 0.20), distance=hsw.get('distance', 0.15)
+    )
+    alloc = config.get('allocation', {})
+    temperature = alloc.get('temperature', 5.0)
+    norm_params = config.get('normalization', {})
+    return weights, sub_weights, temperature, norm_params
+
+def run_monte_carlo(config, iterations=100, num_drivers=10, orders_per_iter=50, output_dir="results"):
+    weights, sub_weights, temperature, norm_params = _load_from_config(config)
+    os.makedirs(os.path.join(output_dir, 'csv'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'charts'), exist_ok=True)
+    
+    market = Market(area="area_A", active_drivers=num_drivers, active_orders=100)
+    drivers = [_make_driver(f"D_{i}", ar=0.8+0.02*i) for i in range(num_drivers)]
+    
+    total_wins = {d.id: 0 for d in drivers}
+    
+    for i in range(iterations):
+        for j in range(orders_per_iter):
+            order = generate_random_order(order_id=f"O_{i}_{j}")
+            result = allocate_order(order, drivers, market, weights, sub_weights, temperature, "softmax", "hard", norm_params)
+            if result and result.driver_id:
+                total_wins[result.driver_id] += 1
+                
+    print("Monte Carlo Results:")
+    with open(os.path.join(output_dir, 'csv', 'monte_carlo.csv'), 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Driver', 'AR', 'Total_Wins'])
+        for d in drivers:
+            print(f"{d.id}: {total_wins[d.id]} wins")
+            writer.writerow([d.id, d.acceptance_rate, total_wins[d.id]])
+            
+    plt.figure(figsize=(12, 6))
+    plt.bar([d.id for d in drivers], [total_wins[d.id] for d in drivers])
+    plt.title('Monte Carlo Allocation Distribution')
+    plt.xlabel('Driver')
+    plt.ylabel('Total Wins')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, 'charts', 'monte_carlo.png'))
+    plt.close()

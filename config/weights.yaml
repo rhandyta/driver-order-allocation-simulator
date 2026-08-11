@@ -1,0 +1,44 @@
+# Scoring weights (total = 100)
+scoring_weights:
+  demand: 30
+  history: 20
+  service: 15
+  time: 10
+  distance: 10
+  eta: 5
+  completion_rate: 5
+  acceptance_rate: 3
+  online_consistency: 2
+
+# Historical fit sub-weights (total = 1.0)
+history_sub_weights:
+  service: 0.35
+  area: 0.30
+  time: 0.20
+  distance: 0.15
+
+# Softmax temperature for probabilistic allocation
+allocation:
+  temperature: 5.0
+  method: "softmax"  # or "deterministic"
+
+# Normalization parameters
+normalization:
+  max_distance_km: 15.0
+  max_eta_minutes: 45.0
+  max_online_hours: 120.0
+  max_online_days: 14
+  max_demand_ratio: 5.0
+
+# Simulation defaults
+simulation:
+  default_days: 14
+  default_drivers: 100
+  default_orders_per_day: 50
+  rolling_window_days: 14
+  monte_carlo_iterations: 10000
+
+# Eligibility mode
+eligibility:
+  device_status_mode: "hard"  # "hard" or "soft"
+  account_status_mode: "hard"  # "hard" or "soft"

@@ -1,0 +1,5 @@
+[
+  {"area": "area_A", "active_drivers": 50, "active_orders": 120},
+  {"area": "area_B", "active_drivers": 80, "active_orders": 60},
+  {"area": "area_C", "active_drivers": 30, "active_orders": 90}
+]

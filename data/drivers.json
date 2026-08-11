@@ -1,0 +1,192 @@
+[
+  {
+    "id": "D001",
+    "location": [-6.917463, 107.619123],
+    "service_types": ["GoRide", "GoFood", "GoSend"],
+    "online": true,
+    "acceptance_rate": 0.95,
+    "completion_rate": 0.98,
+    "online_hours": 110,
+    "online_days": 14,
+    "history": {
+      "services": {"GoRide": 120, "GoFood": 150, "GoSend": 30},
+      "areas": {"area_A": 200, "area_B": 80, "area_C": 20},
+      "time_slots": {"morning": 50, "lunch": 100, "afternoon": 60, "evening": 70, "night": 20},
+      "distance_buckets": {"0-3km": 120, "3-7km": 130, "7km+": 50}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D002",
+    "location": [-6.903412, 107.618645],
+    "service_types": ["GoFood"],
+    "online": true,
+    "acceptance_rate": 0.92,
+    "completion_rate": 0.96,
+    "online_hours": 95,
+    "online_days": 13,
+    "history": {
+      "services": {"GoFood": 220, "GoRide": 0, "GoSend": 0},
+      "areas": {"area_A": 150, "area_B": 60, "area_C": 10},
+      "time_slots": {"morning": 20, "lunch": 100, "afternoon": 30, "evening": 60, "night": 10},
+      "distance_buckets": {"0-3km": 160, "3-7km": 50, "7km+": 10}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D003",
+    "location": [-6.921105, 107.607512],
+    "service_types": ["GoRide"],
+    "online": true,
+    "acceptance_rate": 0.88,
+    "completion_rate": 0.94,
+    "online_hours": 80,
+    "online_days": 12,
+    "history": {
+      "services": {"GoRide": 180, "GoFood": 0, "GoSend": 0},
+      "areas": {"area_A": 50, "area_B": 110, "area_C": 20},
+      "time_slots": {"morning": 60, "lunch": 30, "afternoon": 50, "evening": 40, "night": 0},
+      "distance_buckets": {"0-3km": 40, "3-7km": 100, "7km+": 40}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D004",
+    "location": [-6.891543, 107.610321],
+    "service_types": ["GoRide", "GoFood"],
+    "online": true,
+    "acceptance_rate": 0.75,
+    "completion_rate": 0.85,
+    "online_hours": 15,
+    "online_days": 3,
+    "history": {
+      "services": {"GoRide": 5, "GoFood": 8, "GoSend": 0},
+      "areas": {"area_A": 8, "area_B": 4, "area_C": 1},
+      "time_slots": {"morning": 2, "lunch": 5, "afternoon": 4, "evening": 2, "night": 0},
+      "distance_buckets": {"0-3km": 8, "3-7km": 4, "7km+": 1}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D005",
+    "location": [-6.935012, 107.625034],
+    "service_types": ["GoRide", "GoFood", "GoSend"],
+    "online": true,
+    "acceptance_rate": 0.60,
+    "completion_rate": 0.70,
+    "online_hours": 40,
+    "online_days": 6,
+    "history": {
+      "services": {"GoRide": 30, "GoFood": 25, "GoSend": 10},
+      "areas": {"area_A": 20, "area_B": 35, "area_C": 10},
+      "time_slots": {"morning": 10, "lunch": 15, "afternoon": 20, "evening": 15, "night": 5},
+      "distance_buckets": {"0-3km": 25, "3-7km": 30, "7km+": 10}
+    },
+    "account_status": "suspended",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D006",
+    "location": [-6.912045, 107.632011],
+    "service_types": ["GoFood", "GoSend"],
+    "online": true,
+    "acceptance_rate": 0.85,
+    "completion_rate": 0.90,
+    "online_hours": 70,
+    "online_days": 10,
+    "history": {
+      "services": {"GoFood": 90, "GoSend": 45, "GoRide": 0},
+      "areas": {"area_A": 30, "area_B": 45, "area_C": 60},
+      "time_slots": {"morning": 15, "lunch": 50, "afternoon": 30, "evening": 30, "night": 10},
+      "distance_buckets": {"0-3km": 50, "3-7km": 60, "7km+": 25}
+    },
+    "account_status": "active",
+    "device_status": "unhealthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D007",
+    "location": [-6.885032, 107.595021],
+    "service_types": ["GoSend"],
+    "online": true,
+    "acceptance_rate": 0.98,
+    "completion_rate": 0.99,
+    "online_hours": 105,
+    "online_days": 14,
+    "history": {
+      "services": {"GoSend": 190, "GoRide": 0, "GoFood": 0},
+      "areas": {"area_A": 40, "area_B": 120, "area_C": 30},
+      "time_slots": {"morning": 40, "lunch": 50, "afternoon": 70, "evening": 30, "night": 0},
+      "distance_buckets": {"0-3km": 30, "3-7km": 90, "7km+": 70}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D008",
+    "location": [-6.940021, 107.650012],
+    "service_types": ["GoRide", "GoFood"],
+    "online": false,
+    "acceptance_rate": 0.90,
+    "completion_rate": 0.92,
+    "online_hours": 60,
+    "online_days": 8,
+    "history": {
+      "services": {"GoRide": 70, "GoFood": 50, "GoSend": 0},
+      "areas": {"area_A": 20, "area_B": 30, "area_C": 70},
+      "time_slots": {"morning": 20, "lunch": 30, "afternoon": 40, "evening": 30, "night": 0},
+      "distance_buckets": {"0-3km": 45, "3-7km": 55, "7km+": 20}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D009",
+    "location": [-6.905011, 107.640033],
+    "service_types": ["GoRide", "GoFood"],
+    "online": true,
+    "acceptance_rate": 0.91,
+    "completion_rate": 0.95,
+    "online_hours": 85,
+    "online_days": 11,
+    "history": {
+      "services": {"GoRide": 80, "GoFood": 70, "GoSend": 0},
+      "areas": {"area_A": 60, "area_B": 40, "area_C": 50},
+      "time_slots": {"morning": 0, "lunch": 10, "afternoon": 20, "evening": 50, "night": 70},
+      "distance_buckets": {"0-3km": 30, "3-7km": 70, "7km+": 50}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  },
+  {
+    "id": "D010",
+    "location": [-6.925044, 107.585022],
+    "service_types": ["GoRide", "GoFood"],
+    "online": true,
+    "acceptance_rate": 0.82,
+    "completion_rate": 0.88,
+    "online_hours": 50,
+    "online_days": 7,
+    "history": {
+      "services": {"GoRide": 40, "GoFood": 45, "GoSend": 0},
+      "areas": {"area_A": 25, "area_B": 35, "area_C": 25},
+      "time_slots": {"morning": 15, "lunch": 25, "afternoon": 25, "evening": 15, "night": 5},
+      "distance_buckets": {"0-3km": 35, "3-7km": 35, "7km+": 15}
+    },
+    "account_status": "active",
+    "device_status": "healthy",
+    "trip_settings": {}
+  }
+]
