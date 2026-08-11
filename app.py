@@ -295,4 +295,15 @@ with tab5:
             st.write("#### 📋 Log Alokasi Micro-Simulation")
             st.write(f"Total order dialokasikan: **{len(engine.allocation_log)}**")
 
+    st.markdown("---")
+    st.write("#### 🎬 Render & Preview Animated Trajectory GIF")
+    if st.button("🎬 Render & Preview Animated GIF (20 Ticks)", use_container_width=True):
+        with st.spinner("Merender animasi GIF pergerakan driver..."):
+            from src.animation import DriverTrajectoryAnimator
+            animator = DriverTrajectoryAnimator()
+            gif_path = animator.render_gif(output_path="results/charts/driver_movement.gif", ticks=25, fps=6)
+            st.success("Animasi GIF Berhasil Dirender!")
+            st.image(gif_path, caption="Live Micro-Simulation Driver Trajectory Movement", use_container_width=True)
+
+
 

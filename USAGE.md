@@ -199,10 +199,25 @@ python -m src.main serve --port 8000
 
 ---
 
+### 🎬 I. Merender Animasi Visual Trajektori Driver (GIF)
+
+Untuk merender animasi pergerakan driver secara real-time dari micro-simulation ke file GIF:
+
+```bash
+# Merender animasi pergerakan driver (40 ticks pada 8 FPS)
+python -m src.main animate --ticks 40 --fps 8
+```
+
+- **Output File**: Animasi GIF disimpan di [results/charts/driver_movement.gif](file:///d:/Project/python/driver-order-allocation-simulator/results/charts/driver_movement.gif).
+- Animasi juga dapat dirender dan ditonton secara interaktif pada **Tab 5 Web Dashboard**.
+
+---
+
 ## ⚙️ 3. Mengubah Konfigurasi & Data Input
 
 - **Bobot Scoring Engine**: Edit file [config/weights.yaml](file:///d:/Project/python/driver-order-allocation-simulator/config/weights.yaml) untuk mengubah bobot `demand`, `history`, `distance`, dll.
 - **Profil Driver**: Edit file [data/drivers.json](file:///d:/Project/python/driver-order-allocation-simulator/data/drivers.json) untuk menambah/mengubah kriteria driver.
 - **Kondisi Pasar**: Edit file [data/market.json](file:///d:/Project/python/driver-order-allocation-simulator/data/market.json) untuk mengubah rasio demand/supply wilayah.
+
 
 

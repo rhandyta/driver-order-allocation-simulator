@@ -90,6 +90,15 @@ def cmd_serve(args):
     print(f"Starting FastAPI REST API server on http://localhost:{args.port}...")
     uvicorn.run("src.api:app", host="0.0.0.0", port=args.port, reload=False)
 
+def cmd_animate(args):
+    from .animation import DriverTrajectoryAnimator
+    root = get_project_root()
+    output_gif = os.path.join(root, "results", "charts", "driver_movement.gif")
+    print(f"Rendering micro-simulation trajectory animation ({args.ticks} ticks at {args.fps} FPS)...")
+    animator = DriverTrajectoryAnimator()
+    path = animator.render_gif(output_path=output_gif, ticks=args.ticks, fps=args.fps)
+    print(f"Animation successfully rendered and saved to: {path}")
+
 def main():
     parser = argparse.ArgumentParser(description="Driver Order Allocation Simulator")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -121,6 +130,11 @@ def main():
     serve_parser = subparsers.add_parser("serve", help="Launch FastAPI REST API Server")
     serve_parser.add_argument("--port", type=int, default=8000, help="Server port")
     
+    # animate
+    anim_parser = subparsers.add_parser("animate", help="Render animated GIF of driver movement trajectory")
+    anim_parser.add_argument("--ticks", type=int, default=40, help="Number of ticks")
+    anim_parser.add_argument("--fps", type=int, default=8, help="Frames per second")
+    
     args = parser.parse_args()
     
     if args.command == "simulate":
@@ -137,8 +151,11 @@ def main():
         cmd_dashboard(args)
     elif args.command == "serve":
         cmd_serve(args)
+    elif args.command == "animate":
+        cmd_animate(args)
     else:
         parser.print_help()
+
 
 
 
