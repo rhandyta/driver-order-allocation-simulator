@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Mobile Web App — Driver Order Allocation Platform</title>
+    <link rel="stylesheet" href="/app/css/style.css">
+    <!-- Leaflet Maps CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .driver-card {
+            max-width: 650px;
+            margin: 0 auto;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.6);
+            text-align: center;
+            animation: pulseGlow 1.5s infinite alternate;
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+            100% { box-shadow: 0 0 35px rgba(59, 130, 246, 0.9); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="brand">
+            <span>🚗 Driver Portal App</span>
+        </div>
+        <div class="nav-links">
+            <a href="/app/admin/index.html" class="nav-item">🌐 Operations Dashboard</a>
+            <a href="/app/driver/index.html" class="nav-item active">🚗 Driver Web App</a>
+            <a href="/app/customer/index.html" class="nav-item">📱 Customer App</a>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+        
+        <div class="driver-card glass-card">
+            
+            <!-- DRIVER PROFILE SELECTOR & TOGGLE -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <label>Pilih ID Driver Anda:</label>
+                    <select id="driver-select" onchange="switchDriverProfile()">
+                        <option value="D001">Memuat daftar driver...</option>
+                    </select>
+
+                </div>
+                <div>
+                    <button id="btn-toggle-online" class="btn btn-success" onclick="toggleOnlineState()">
+                        ● ONLINE (SIAP KERJA)
+                    </button>
+                </div>
+            </div>
+
+            <!-- DRIVER STATS GRID -->
+            <div class="grid-cols-3" style="margin-bottom: 1.5rem;">
+                <div class="metric-box" style="background: rgba(15, 23, 42, 0.4); padding: 0.75rem; border-radius: 8px;">
+                    <span class="metric-label">Driver Rating</span>
+                    <span class="metric-value" style="font-size: 1.25rem;">⭐ 4.9</span>
+                </div>
+                <div class="metric-box" style="background: rgba(15, 23, 42, 0.4); padding: 0.75rem; border-radius: 8px;">
+                    <span class="metric-label">Acceptance Rate</span>
+                    <span class="metric-value" style="font-size: 1.25rem; color: #34d399;">98.5%</span>
+                </div>
+                <div class="metric-box" style="background: rgba(15, 23, 42, 0.4); padding: 0.75rem; border-radius: 8px;">
+                    <span class="metric-label">Pendapatan Hari Ini</span>
+                    <span class="metric-value" style="font-size: 1.25rem; color: #fbbf24;" id="driver-earnings">Rp 185.000</span>
+                </div>
+            </div>
+
+            <!-- ACTION HELPER BUTTONS -->
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <button class="btn btn-primary" style="flex: 1; font-size: 0.85rem;" onclick="setNearPickupLocation()">
+                    🎯 Pindahkan Posisi Saya Dekat Penjemputan
+                </button>
+            </div>
+
+            <!-- DRIVER LIVE MAP -->
+            <h4 style="margin-bottom: 0.5rem;">📍 Peta Lokasi Driver (Klik di mana saja untuk pindah lokasi)</h4>
+            <div id="map" style="height: 350px;"></div>
+
+        </div>
+
+    </div>
+
+    <!-- DISPATCH NOTIFICATION MODAL -->
+    <div id="dispatch-modal" class="modal">
+        <div class="modal-content">
+            <span class="chip chip-orange" style="margin-bottom: 1rem; font-size: 0.85rem;">🚨 DISPATCH ALOKASI ORDER MASUK!</span>
+            <h2 id="modal-service" style="margin-bottom: 0.5rem; font-size: 1.8rem; color: #60a5fa;">GoRide</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+                Order baru dialokasikan ke Anda oleh Scoring Engine!
+            </p>
+
+            <div style="background: rgba(15, 23, 42, 0.7); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: left; border: 1px solid rgba(255,255,255,0.1);">
+                <p><b>Order ID:</b> <span id="modal-order-id">ORD_0001</span></p>
+                <p><b>Pemesan:</b> <span id="modal-customer">Pengguna Bandung</span></p>
+                <p><b>Jarak Jemput:</b> <span id="modal-dist">0.2 km</span></p>
+                <p><b>Skor Match:</b> <span style="color: #fbbf24; font-weight: 700;" id="modal-score">88.5</span></p>
+                <p><b>Estimasi Komisi:</b> <b style="color: #34d399; font-size: 1.1rem;" id="modal-fare">Rp 15.000</b></p>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-danger" style="flex: 1;" onclick="rejectOrder()">Tolak</button>
+                <button class="btn btn-success" style="flex: 1;" onclick="acceptOrder()">Terima Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let currentDriverId = "D001";
+        let isOnline = true;
+        let driverLat = -6.9147, driverLon = 107.6098;
+        let processedOrderIds = new Set();
+        let currentActiveOrder = null;
+
+        let map = L.map('map').setView([driverLat, driverLon], 14);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let driverMarker = L.marker([driverLat, driverLon], {draggable: true}).addTo(map);
+        driverMarker.bindPopup(`<b>Lokasi Anda (${currentDriverId})</b><br>Geser pin untuk ubah lokasi`).openPopup();
+
+        driverMarker.on('dragend', function(e) {
+            let latlng = e.target.getLatLng();
+            updateLocationOnBackend(latlng.lat, latlng.lng);
+        });
+
+        map.on('click', function(e) {
+            driverMarker.setLatLng(e.latlng);
+            updateLocationOnBackend(e.latlng.lat, e.latlng.lng);
+        });
+
+        async function updateLocationOnBackend(lat, lon) {
+            driverLat = lat; driverLon = lon;
+            await fetch('/api/driver/update-location', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ driver_id: currentDriverId, lat: lat, lon: lon })
+            });
+            driverMarker.bindPopup(`<b>Lokasi Anda (${currentDriverId})</b><br>Posisi: ${lat.toFixed(4)}, ${lon.toFixed(4)}`).openPopup();
+        }
+
+        async function loadAllDrivers() {
+            try {
+                const res = await fetch('/api/drivers');
+                const drivers = await res.json();
+                const select = document.getElementById('driver-select');
+                
+                if (drivers && drivers.length > 0) {
+                    select.innerHTML = drivers.map(d => {
+                        const svcs = (d.service_types || ['GoRide']).join('/');
+                        const statusStr = d.online ? '● ONLINE' : '○ OFFLINE';
+                        return `<option value="${d.id}" ${d.id === currentDriverId ? 'selected' : ''}>Driver ${d.id} (${svcs}) — ${statusStr}</option>`;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error("Gagal memuat daftar driver:", err);
+            }
+        }
+
+        async function switchDriverProfile() {
+            currentDriverId = document.getElementById('driver-select').value;
+            await updateLocationOnBackend(driverLat, driverLon);
+            alert(`👤 Profil Driver Diganti ke ${currentDriverId}. Status Aktif & Lokasi Disinkronkan!`);
+        }
+
+
+        async function setNearPickupLocation() {
+            // Set location to default pickup center (-6.9147, 107.6098)
+            let pickupLat = -6.9147, pickupLon = 107.6098;
+            driverMarker.setLatLng([pickupLat, pickupLon]);
+            map.setView([pickupLat, pickupLon], 15);
+            await updateLocationOnBackend(pickupLat, pickupLon);
+            alert(`🎯 Posisi ${currentDriverId} Berhasil Dipindahkan Dekat Titik Penjemputan Customer!`);
+        }
+
+        async function toggleOnlineState() {
+            const res = await fetch('/api/driver/toggle-online', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ driver_id: currentDriverId })
+            });
+            const data = await res.json();
+            isOnline = data.online;
+
+            const btn = document.getElementById('btn-toggle-online');
+            if (isOnline) {
+                btn.className = "btn btn-success";
+                btn.innerText = "● ONLINE (SIAP KERJA)";
+            } else {
+                btn.className = "btn btn-danger";
+                btn.innerText = "○ OFFLINE";
+            }
+        }
+
+        async function checkForDispatchOrders() {
+            if (!isOnline) return;
+            try {
+                const res = await fetch('/api/market-status');
+                const data = await res.json();
+                
+                // Find order allocated to current driver
+                const myOrder = data.recent_allocations.find(a => a.assigned_driver_id === currentDriverId && !processedOrderIds.has(a.order_id));
+                if (myOrder) {
+                    currentActiveOrder = myOrder;
+                    document.getElementById('modal-service').innerText = myOrder.service_type;
+                    document.getElementById('modal-order-id').innerText = myOrder.order_id;
+                    document.getElementById('modal-customer').innerText = myOrder.customer_name || 'Pengguna Bandung';
+                    document.getElementById('modal-dist').innerText = myOrder.distance_km + ' km';
+                    document.getElementById('modal-score').innerText = myOrder.score;
+                    document.getElementById('modal-fare').innerText = 'Rp ' + myOrder.fare_idr.toLocaleString('id-ID');
+                    document.getElementById('dispatch-modal').style.display = 'flex';
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function acceptOrder() {
+            if (currentActiveOrder) {
+                processedOrderIds.add(currentActiveOrder.order_id);
+            }
+            document.getElementById('dispatch-modal').style.display = 'none';
+            alert(`🎉 Selamat! Order ${currentActiveOrder ? currentActiveOrder.order_id : ''} Berhasil Diterima. Silakan Menuju Lokasi Penjemputan Customer.`);
+        }
+
+        function rejectOrder() {
+            if (currentActiveOrder) {
+                processedOrderIds.add(currentActiveOrder.order_id);
+            }
+            document.getElementById('dispatch-modal').style.display = 'none';
+        }
+
+        // Sync initial position, load driver list, & start polling
+        loadAllDrivers();
+        updateLocationOnBackend(driverLat, driverLon);
+        setInterval(checkForDispatchOrders, 2000);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Order Booking App — Driver Order Allocation Platform</title>
+    <link rel="stylesheet" href="/app/css/style.css">
+    <!-- Leaflet Maps CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .booking-card {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="brand">
+            <span>📱 Customer Booking App</span>
+        </div>
+        <div class="nav-links">
+            <a href="/app/admin/index.html" class="nav-item">🌐 Operations Dashboard</a>
+            <a href="/app/driver/index.html" class="nav-item">🚗 Driver Web App</a>
+            <a href="/app/customer/index.html" class="nav-item active">📱 Customer App</a>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+        
+        <div class="booking-card glass-card">
+            
+            <div style="margin-bottom: 1.5rem;">
+                <h2>📱 Pesan Layanan GoRide / GoFood</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">
+                    Tentukan titik penjemputan dan tujuan di peta Bandung untuk mencocokkan driver terbaik via Scoring Engine.
+                </p>
+            </div>
+
+            <!-- MAP & BOOKING FORM GRID -->
+            <div class="grid-cols-2">
+                
+                <!-- LEFT: INTERACTIVE MAP -->
+                <div>
+                    <h4 style="margin-bottom: 0.5rem;">📍 Klik Peta untuk Lokasi Jemput & Tujuan</h4>
+                    <div id="map" style="height: 380px;"></div>
+                </div>
+
+                <!-- RIGHT: BOOKING FORM -->
+                <div>
+                    <div class="form-group">
+                        <label>Nama Pemesan:</label>
+                        <input type="text" id="cust-name" value="Budi Santoso">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pilih Layanan:</label>
+                        <select id="cust-service">
+                            <option value="GoRide">🛵 GoRide (Motorbike Taxi)</option>
+                            <option value="GoFood">🍲 GoFood (Food Delivery)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Koordinat Penjemputan (Pickup):</label>
+                        <input type="text" id="pickup-coords" value="-6.9150, 107.6100" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Koordinat Tujuan (Destination):</label>
+                        <input type="text" id="dest-coords" value="-6.9250, 107.6250" readonly>
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="placeOrder()">
+                        ⚡ Cari Driver Terbaik Sekarang
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- RESULT MATCHING CARD -->
+            <div id="result-card" style="display: none; margin-top: 2rem; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 1.5rem; border-radius: 12px;">
+                <h3 style="color: #34d399; margin-bottom: 1rem;">🎉 DRIVER BERHASIL DICOCOKKAN!</h3>
+                <div class="grid-cols-3">
+                    <div>
+                        <span class="metric-label">Driver Dialokasikan</span>
+                        <p style="font-size: 1.2rem; font-weight: 700;" id="res-driver-id">D001</p>
+                    </div>
+                    <div>
+                        <span class="metric-label">Skor Keandalan Engine</span>
+                        <p style="font-size: 1.2rem; font-weight: 700; color: #fbbf24;" id="res-score">88.5</p>
+                    </div>
+                    <div>
+                        <span class="metric-label">Estimasi Total Tarif</span>
+                        <p style="font-size: 1.2rem; font-weight: 700; color: #34d399;" id="res-fare">Rp 16.750</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let pickupLat = -6.9150, pickupLon = 107.6100;
+        let destLat = -6.9250, destLon = 107.6250;
+
+        let map = L.map('map').setView([pickupLat, pickupLon], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let pickupMarker = L.marker([pickupLat, pickupLon], {draggable: true}).addTo(map).bindPopup("Lokasi Penjemputan");
+        let destMarker = L.marker([destLat, destLon], {draggable: true}).addTo(map).bindPopup("Lokasi Tujuan");
+
+        pickupMarker.on('dragend', function(e) {
+            let latlng = e.target.getLatLng();
+            pickupLat = latlng.lat; pickupLon = latlng.lng;
+            document.getElementById('pickup-coords').value = `${pickupLat.toFixed(4)}, ${pickupLon.toFixed(4)}`;
+        });
+
+        destMarker.on('dragend', function(e) {
+            let latlng = e.target.getLatLng();
+            destLat = latlng.lat; destLon = latlng.lng;
+            document.getElementById('dest-coords').value = `${destLat.toFixed(4)}, ${destLon.toFixed(4)}`;
+        });
+
+        async function placeOrder() {
+            const name = document.getElementById('cust-name').value;
+            const service = document.getElementById('cust-service').value;
+
+            try {
+                const res = await fetch('/api/orders/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        customer_name: name,
+                        service_type: service,
+                        pickup_lat: pickupLat,
+                        pickup_lon: pickupLon,
+                        dest_lat: destLat,
+                        dest_lon: destLon
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.status === 'matched') {
+                    document.getElementById('res-driver-id').innerText = data.assigned_driver_id;
+                    document.getElementById('res-score').innerText = data.score;
+                    document.getElementById('res-fare').innerText = 'Rp ' + data.fare_idr.toLocaleString('id-ID');
+                    document.getElementById('result-card').style.display = 'block';
+                    alert(`🎉 Driver ${data.assigned_driver_id} Berhasil Dilocasikan untuk Order ${data.order_id}!`);
+                } else {
+                    alert("⚠️ Maaf, tidak ada driver yang memenuhi kualifikasi saat ini.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("Gagal membuat order.");
+            }
+        }
+    </script>
+</body>
+</html>

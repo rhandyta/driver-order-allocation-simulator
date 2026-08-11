@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Management Operations Control Center — Driver Order Allocation Platform</title>
+    <link rel="stylesheet" href="/app/css/style.css">
+    <!-- Leaflet Maps CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="brand">
+            <span>🛡️ Management Control Center</span>
+        </div>
+        <div class="nav-links">
+            <a href="/app/admin/index.html" class="nav-item active">🌐 Operations Dashboard</a>
+            <a href="/app/driver/index.html" class="nav-item">🚗 Driver Web App</a>
+            <a href="/app/customer/index.html" class="nav-item">📱 Customer App</a>
+            <a href="/docs" target="_blank" class="nav-item">⚡ REST API Docs</a>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+        
+        <!-- METRICS ROW -->
+        <div class="grid-cols-3" style="margin-bottom: 1.5rem;">
+            <div class="glass-card metric-box">
+                <span class="metric-label">Populasi Driver Aktif</span>
+                <span class="metric-value" id="val-drivers">--</span>
+            </div>
+            <div class="glass-card metric-box">
+                <span class="metric-label">Total Order Dialokasikan</span>
+                <span class="metric-value" id="val-orders">--</span>
+            </div>
+            <div class="glass-card metric-box">
+                <span class="metric-label">Status Lonjakan Cuaca (Surge)</span>
+                <span class="metric-value" id="val-weather" style="font-size: 1.5rem;">CLEAR (1.0x)</span>
+            </div>
+        </div>
+
+        <!-- MAIN GRID: MAP + CONTROLS -->
+        <div class="grid-cols-2">
+            
+            <!-- LEFT: MAP -->
+            <div class="glass-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3>📍 Live Spatial Dispatch Map (Bandung)</h3>
+                    <span class="chip chip-green">● LIVE UPDATES</span>
+                </div>
+                <div id="map"></div>
+            </div>
+
+            <!-- RIGHT: OPERATIONS CONTROL PANEL -->
+            <div class="glass-card">
+                <h3>🎛️ Operations & Dynamic Surge Control</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                    Atur skenario cuaca, lonjakan harga (surge multiplier), dan bobot scoring engine secara real-time.
+                </p>
+
+                <div class="form-group">
+                    <label>Pemicu Cuaca Pasar (Weather Trigger)</label>
+                    <select id="select-weather">
+                        <option value="clear">☀️ Clear / Normal (Surge 1.0x)</option>
+                        <option value="rainy">🌧️ Rainy / Hujan Deras (Surge 2.5x)</option>
+                        <option value="heavy_rain">🌩️ Heavy Storm / Badai (Surge 3.5x)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Bobot Jarak Spasial (Distance Weight)</label>
+                    <input type="range" id="weight-distance" min="0" max="100" value="30">
+                </div>
+
+                <div class="form-group">
+                    <label>Bobot Demand/Supply Pasar (Demand Weight)</label>
+                    <input type="range" id="weight-demand" min="0" max="100" value="30">
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="applyMarketConfig()">
+                    ⚡ Terapkan Konfigurasi Pasar
+                </button>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM: REAL-TIME DISPATCH INSPECTOR TABLE -->
+        <div class="glass-card" style="margin-top: 1.5rem;">
+            <h3>📋 Real-Time Dispatch & Allocation Inspector Log</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Waktu</th>
+                            <th>Order ID</th>
+                            <th>Layanan</th>
+                            <th>Driver Dialokasikan</th>
+                            <th>Skor Matched</th>
+                            <th>Probabilitas</th>
+                            <th>Tarif (IDR)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dispatch-table-body">
+                        <tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Memuat log alokasi real-time...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let map = L.map('map').setView([-6.9147, 107.6098], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        let driverMarkers = {};
+        let orderMarkers = [];
+
+        async function fetchMarketStatus() {
+            try {
+                const res = await fetch('/api/market-status');
+                const data = await res.json();
+
+                document.getElementById('val-drivers').innerText = data.active_drivers_count + ' Drivers';
+                document.getElementById('val-orders').innerText = data.total_orders_count + ' Orders';
+                document.getElementById('val-weather').innerText = `${data.weather.toUpperCase()} (${data.surge_multiplier}x)`;
+
+                // Render Drivers on Map
+                data.drivers.forEach(drv => {
+                    const latlng = [drv.lat, drv.lon];
+                    if (driverMarkers[drv.id]) {
+                        driverMarkers[drv.id].setLatLng(latlng);
+                    } else {
+                        const marker = L.circleMarker(latlng, {
+                            radius: 8,
+                            fillColor: drv.online ? '#3b82f6' : '#64748b',
+                            color: '#ffffff',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        }).addTo(map);
+                        marker.bindPopup(`<b>Driver: ${drv.id}</b><br>Rating: ⭐ ${drv.rating}<br>Status: ${drv.online ? 'Online' : 'Offline'}`);
+                        driverMarkers[drv.id] = marker;
+                    }
+                });
+
+                // Render Allocations Table
+                const tbody = document.getElementById('dispatch-table-body');
+                if (data.recent_allocations.length > 0) {
+                    tbody.innerHTML = data.recent_allocations.slice().reverse().map(alloc => `
+                        <tr>
+                            <td>${alloc.timestamp || 'Baru Saja'}</td>
+                            <td><b>${alloc.order_id}</b></td>
+                            <td><span class="chip chip-purple">${alloc.service_type}</span></td>
+                            <td><b>${alloc.assigned_driver_id || 'Belum Match'}</b></td>
+                            <td><span style="color: #10b981; font-weight: 600;">${alloc.score}</span></td>
+                            <td>${(alloc.probability * 100).toFixed(1)}%</td>
+                            <td>Rp ${alloc.fare_idr.toLocaleString('id-ID')}</td>
+                            <td><span class="chip chip-green">${alloc.status.toUpperCase()}</span></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Belum ada order. Buat order di Customer App!</td></tr>`;
+                }
+
+            } catch (err) {
+                console.error("Gagal mengambil status pasar:", err);
+            }
+        }
+
+        async function applyMarketConfig() {
+            const weather = document.getElementById('select-weather').value;
+            const distW = parseFloat(document.getElementById('weight-distance').value);
+            const demW = parseFloat(document.getElementById('weight-demand').value);
+
+            await fetch('/api/market-config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    weather: weather,
+                    weights: { distance: distW, demand: demW }
+                })
+            });
+
+            alert("⚡ Konfigurasi Pasar & Surge Multiplier Berhasil Diterapkan!");
+            fetchMarketStatus();
+        }
+
+        // Auto Refresh Every 3 Seconds
+        setInterval(fetchMarketStatus, 3000);
+        fetchMarketStatus();
+    </script>
+</body>
+</html>
