@@ -10,3 +10,4 @@ h3
 fastapi
 uvicorn
 httpx
+pymysql

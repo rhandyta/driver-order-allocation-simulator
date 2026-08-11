@@ -77,12 +77,13 @@ config = {
 
 
 # ==================== MAIN DASHBOARD TABS ====================
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🎯 Live Simulation & Inspector",
     "🤖 Machine Learning & Calibration Studio",
     "🧪 Experiment Lab",
     "👤 Driver Profile Explorer",
-    "⏱️ Micro-Simulation View"
+    "⏱️ Micro-Simulation View",
+    "🗄️ MySQL Database Inspector"
 ])
 
 
@@ -104,9 +105,17 @@ with tab1:
         with st.spinner("Menjalankan simulasi alokasi order..."):
             sim = Simulator(config)
             results = sim.run_simulation(days=sim_days, num_drivers=num_drivers, orders_per_day=orders_per_day)
+            sim.save_results()
+            try:
+                from src.database import MySQLDatabaseManager
+                db = MySQLDatabaseManager()
+                db.save_drivers(sim.drivers)
+            except Exception:
+                pass
             st.session_state["sim_results"] = results
             st.session_state["simulator"] = sim
-            st.success(f"Simulasi selesai! Total alokasi berhasil: {len(results)} order.")
+            st.success(f"Simulasi selesai & tersimpan ke MySQL (`simulator`)! Total alokasi berhasil: {len(results)} order.")
+
 
 
     if "simulator" in st.session_state:
@@ -304,6 +313,46 @@ with tab5:
             gif_path = animator.render_gif(output_path="results/charts/driver_movement.gif", ticks=25, fps=6)
             st.success("Animasi GIF Berhasil Dirender!")
             st.image(gif_path, caption="Live Micro-Simulation Driver Trajectory Movement", use_container_width=True)
+
+
+# -------------------- TAB 6: MYSQL DATABASE INSPECTOR --------------------
+with tab6:
+    st.subheader("🗄️ Laragon MySQL Database Inspector (`simulator`)")
+    st.markdown("Integrasi langsung database **MySQL** pada platform Laragon untuk inspeksi dan query log alokasi real-time.")
+
+    from src.database import MySQLDatabaseManager
+    db = MySQLDatabaseManager()
+
+    try:
+        db.init_db()
+        st.success("✅ Terhubung ke Server MySQL Laragon (Database: `simulator`)")
+        
+        df_alloc = db.query_allocations(limit=100)
+        drivers_list = db.load_drivers()
+
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.metric("Total Driver Tersimpan di MySQL", f"{len(drivers_list)} Drivers")
+        with col_m2:
+            st.metric("Total Order Allocated di MySQL", f"{len(df_alloc)} Allocations")
+
+        st.markdown("---")
+        st.write("#### 📄 Tabel Log Alokasi Order Terbaru (MySQL `allocations`)")
+        if not df_alloc.empty:
+            st.dataframe(df_alloc, use_container_width=True)
+            csv_data = df_alloc.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                "📥 Unduh Data Alokasi MySQL (CSV)",
+                data=csv_data,
+                file_name="mysql_allocations_export.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("Belum ada log alokasi tersimpan di MySQL. Jalankan simulasi di Tab 1 untuk mengisi data!")
+
+    except Exception as err:
+        st.error(f"Gagal terhubung ke MySQL Laragon. Pastikan service MySQL di Laragon aktif! Detail error: {err}")
+
 
 
 

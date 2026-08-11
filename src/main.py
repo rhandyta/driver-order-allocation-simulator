@@ -99,6 +99,14 @@ def cmd_animate(args):
     path = animator.render_gif(output_path=output_gif, ticks=args.ticks, fps=args.fps)
     print(f"Animation successfully rendered and saved to: {path}")
 
+def cmd_init_db(args):
+    from .database import MySQLDatabaseManager
+    print(f"Connecting to Laragon MySQL (host={args.host}, db={args.db}) and initializing tables...")
+    db = MySQLDatabaseManager(host=args.host, port=args.port, user=args.user, password=args.password, database=args.db)
+    db.init_db()
+    print("[OK] MySQL Database tables (drivers, orders, allocations) successfully created!")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Driver Order Allocation Simulator")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -135,6 +143,14 @@ def main():
     anim_parser.add_argument("--ticks", type=int, default=40, help="Number of ticks")
     anim_parser.add_argument("--fps", type=int, default=8, help="Frames per second")
     
+    # init-db
+    db_parser = subparsers.add_parser("init-db", help="Initialize Laragon MySQL Database Tables")
+    db_parser.add_argument("--host", type=str, default="localhost")
+    db_parser.add_argument("--port", type=int, default=3306)
+    db_parser.add_argument("--user", type=str, default="root")
+    db_parser.add_argument("--password", type=str, default="")
+    db_parser.add_argument("--db", type=str, default="simulator")
+    
     args = parser.parse_args()
     
     if args.command == "simulate":
@@ -153,8 +169,11 @@ def main():
         cmd_serve(args)
     elif args.command == "animate":
         cmd_animate(args)
+    elif args.command == "init-db":
+        cmd_init_db(args)
     else:
         parser.print_help()
+
 
 
 

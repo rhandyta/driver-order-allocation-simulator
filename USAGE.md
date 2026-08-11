@@ -213,11 +213,46 @@ python -m src.main animate --ticks 40 --fps 8
 
 ---
 
+### 🗄️ J. Menggunakan Database Persistence MySQL (Laragon)
+
+Untuk menginisialisasi tabel database MySQL Laragon (`simulator`) dan menyimpan riwayat simulasi:
+
+```bash
+# Inisialisasi tabel drivers, orders, allocations pada database MySQL Laragon (simulator)
+python -m src.main init-db --host localhost --user root --db simulator
+```
+
+- **Konfigurasi Default Laragon**: Host `localhost:3306`, User `root`, Password `""`, Database `simulator`.
+- Setiap kali simulasi dijalankan (`python -m src.main simulate`), log alokasi order otomatis tersimpan ke tabel `allocations` di MySQL.
+
+---
+
+### 🐳 K. Deployment Menggunakan Docker Containerization
+
+Untuk menjalankan seluruh service (Web UI, REST API, Go Engine, dan MySQL Database) dalam container Docker dengan 1-klik:
+
+```bash
+# Meluncurkan seluruh container service di background
+docker-compose up -d
+
+# Menghentikan seluruh container service
+docker-compose down
+```
+
+- **Web Dashboard**: `http://localhost:8501`
+- **REST API Gateway**: `http://localhost:8000`
+- **Swagger Docs**: `http://localhost:8000/docs`
+- **MySQL Container**: `localhost:3306` (Database: `simulator`)
+
+---
+
 ## ⚙️ 3. Mengubah Konfigurasi & Data Input
 
 - **Bobot Scoring Engine**: Edit file [config/weights.yaml](file:///d:/Project/python/driver-order-allocation-simulator/config/weights.yaml) untuk mengubah bobot `demand`, `history`, `distance`, dll.
 - **Profil Driver**: Edit file [data/drivers.json](file:///d:/Project/python/driver-order-allocation-simulator/data/drivers.json) untuk menambah/mengubah kriteria driver.
 - **Kondisi Pasar**: Edit file [data/market.json](file:///d:/Project/python/driver-order-allocation-simulator/data/market.json) untuk mengubah rasio demand/supply wilayah.
+
+
 
 
 

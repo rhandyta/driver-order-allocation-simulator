@@ -261,7 +261,7 @@ class Simulator:
         os.makedirs(os.path.join(output_dir, "charts"), exist_ok=True)
         os.makedirs(os.path.join(output_dir, "csv"), exist_ok=True)
         
-        # Save allocation results
+        # Save allocation results to CSV
         if self.results:
             df = pd.DataFrame([
                 {"timestamp": r.timestamp, "order_id": r.order_id, "driver_id": r.driver_id,
@@ -269,6 +269,16 @@ class Simulator:
                 for r in self.results
             ])
             df.to_csv(os.path.join(output_dir, "csv", "allocation.csv"), index=False)
+            
+            # Save to MySQL database if available
+            try:
+                from .database import MySQLDatabaseManager
+                db = MySQLDatabaseManager()
+                db.init_db()
+                db.save_allocations(self.results)
+            except Exception as e:
+                pass
+
         
         # Save driver statistics
         stats = self.get_driver_statistics()
